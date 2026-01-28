@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'dart:io';
+
+import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_explorer_apk/models/file_model.dart';
 import 'package:file_explorer_apk/services/file_service.dart';
-import 'package:open_file/open_file.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FileListScreen extends ConsumerStatefulWidget {
   final String title;
@@ -139,21 +145,357 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
 
   Future<void> _shareSelectedFiles() async {
     if (_selectedFiles.isEmpty) return;
+    await _sharePaths(_selectedFiles.toList());
+  }
 
-    try {
-      final files = _selectedFiles.map((path) => XFile(path)).toList();
-      await Share.shareXFiles(
-        files,
-        text: 'Sharing ${_selectedFiles.length} file(s)',
+  Future<void> _sharePaths(List<String> paths) async {
+    if (paths.isEmpty) return;
+    final existingPaths = paths
+        .where((path) => File(path).existsSync())
+        .toList();
+    if (existingPaths.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selected items are no longer available.'),
+        ),
       );
+      return;
+    }
+    final missingCount = paths.length - existingPaths.length;
+    if (missingCount > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$missingCount item(s) could not be found.')),
+      );
+    }
+    try {
+      final files = existingPaths.map((path) => XFile(path)).toList();
+      await Share.shareXFiles(files, text: 'Sharing ${files.length} item(s)');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error sharing files: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error sharing items: $e')));
     }
   }
+
+  void _showActionPending(String label) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label is coming soon.')));
+  }
+
+  Future<void> _handleFolderAction(String action, FileModel file) async {
+    switch (action) {
+      case 'select':
+        _toggleSelection(file.path);
+        break;
+      case 'quick_share':
+        await _quickShareFolder(file);
+        break;
+      case 'move_to':
+        _showActionPending('Move to');
+        break;
+      case 'copy_to':
+        _showActionPending('Copy to');
+        break;
+      case 'rename':
+        _showActionPending('Rename');
+        break;
+      case 'compress':
+        _showActionPending('Compress');
+        break;
+      case 'delete':
+        await _deleteEntry(file);
+        break;
+      case 'info':
+        _showFolderInfo(file);
+        break;
+      default:
+        _showActionPending(action);
+    }
+  }
+
+  void _handleFileAction(String action, FileModel file) async {
+    switch (action) {
+      case 'select':
+        _toggleSelection(file.path);
+        break;
+      case 'share':
+        await _sharePaths([file.path]);
+        break;
+      case 'move_to':
+        _showActionPending('Move to');
+        break;
+      case 'copy_to':
+        _showActionPending('Copy to');
+        break;
+      case 'add_starred':
+        _showActionPending('Add to Starred');
+        break;
+      case 'move_trash':
+        _showActionPending('Move to trash');
+        break;
+      case 'move_safe':
+        _showActionPending('Move to safe folder');
+        break;
+      case 'backup_drive':
+        _showActionPending('Back up to Google Drive');
+        break;
+      case 'rename':
+        _showActionPending('Rename');
+        break;
+      case 'compress':
+        _showActionPending('Compress');
+        break;
+      case 'delete':
+        await _deleteEntry(file);
+        break;
+      case 'info':
+        _showFileInfo(file);
+        break;
+      default:
+        _showActionPending(action);
+    }
+  }
+
+  Future<void> _deleteEntry(FileModel file) async {
+    final shouldDelete = await _confirmDeletion(file);
+    if (!shouldDelete) return;
+    try {
+      bool success = false;
+      if (file.isDirectory) {
+        success = await FileService.deleteDirectory(file.path);
+      } else {
+        success = await FileService.deleteFile(file.path);
+      }
+      if (!success) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to delete ${file.name}')),
+        );
+        return;
+      }
+      _selectedFiles.remove(file.path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${file.name} deleted')));
+      await _loadFiles();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting ${file.name}: $e')),
+      );
+    }
+  }
+
+  Future<bool> _confirmDeletion(FileModel file) async {
+    if (!mounted) return false;
+    final descriptor = file.isDirectory ? 'folder' : 'file';
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete permanently'),
+            content: Text(
+              'Are you sure you want to delete the $descriptor "${file.name}" permanently?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _showFolderInfo(FileModel file) {
+    if (!mounted) return;
+    final sizeFuture = FileService.getDirectorySize(file.path);
+    showDialog<void>(
+      context: context,
+      builder: (_) => FutureBuilder<int>(
+        future: sizeFuture,
+        builder: (context, snapshot) {
+          Widget sizeWidget;
+          if (snapshot.hasError) {
+            sizeWidget = Text(
+              'Size: Unable to calculate',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            );
+          } else if (!snapshot.hasData) {
+            sizeWidget = const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Size: '),
+                SizedBox(width: 8),
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            );
+          } else {
+            sizeWidget = Text('Size: ${_formatFileSize(snapshot.data ?? 0)}');
+          }
+
+          return AlertDialog(
+            title: const Text('Folder info'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Name: ${file.name}'),
+                const SizedBox(height: 8),
+                Text('Path: ${file.path}'),
+                const SizedBox(height: 8),
+                Text('Items: ${file.itemCount ?? 'Unknown'}'),
+                const SizedBox(height: 8),
+                sizeWidget,
+                const SizedBox(height: 8),
+                Text(
+                  'Last modified: ${DateFormat('dd MMM yyyy, HH:mm').format(file.lastModified)}',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _quickShareFolder(FileModel folder) async {
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    var dialogVisible = false;
+
+    try {
+      dialogVisible = true;
+      unawaited(
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const _ProgressDialog(message: 'Preparing folder...'),
+        ),
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedName = _sanitizeFileName(folder.name);
+      final zipTarget = p.join(
+        tempDir.path,
+        '${sanitizedName}_${DateTime.now().millisecondsSinceEpoch}.zip',
+      );
+
+      final zipPath = await compute(_zipFolder, {
+        'source': folder.path,
+        'zip': zipTarget,
+      });
+
+      if (dialogVisible && navigator.mounted) {
+        navigator.pop();
+        dialogVisible = false;
+      }
+
+      await Share.shareXFiles([
+        XFile(zipPath),
+      ], text: 'Sharing folder "${folder.name}"');
+
+      await File(zipPath).delete().catchError((_) {});
+    } catch (e) {
+      if (dialogVisible && navigator.mounted) {
+        navigator.pop();
+        dialogVisible = false;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Quick share failed: $e')));
+    }
+  }
+
+  String _sanitizeFileName(String name) {
+    final sanitized = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    return sanitized.isEmpty ? 'folder' : sanitized;
+  }
+
+  void _showFileInfo(FileModel file) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('File info'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${file.name}'),
+            const SizedBox(height: 8),
+            Text('Path: ${file.path}'),
+            const SizedBox(height: 8),
+            Text('Size: ${_formatFileSize(file.size)}'),
+            const SizedBox(height: 8),
+            Text(
+              'Modified: ${DateFormat('dd MMM yyyy, HH:mm').format(file.lastModified)}',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Type: ${file.extension.isEmpty ? 'Unknown' : file.extension}',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PopupMenuEntry<String>> _folderMenuItems() => const [
+    PopupMenuItem(value: 'select', child: Text('Select')),
+    PopupMenuItem(value: 'quick_share', child: Text('Quick share')),
+    PopupMenuItem(value: 'move_to', child: Text('Move to')),
+    PopupMenuItem(value: 'copy_to', child: Text('Copy to')),
+    PopupMenuItem(value: 'rename', child: Text('Rename')),
+    PopupMenuItem(value: 'compress', child: Text('Compress')),
+    PopupMenuItem(value: 'delete', child: Text('Delete permanently')),
+    PopupMenuItem(value: 'info', child: Text('Folder info')),
+  ];
+
+  List<PopupMenuEntry<String>> _fileMenuItems() => const [
+    PopupMenuItem(value: 'select', child: Text('Select')),
+    PopupMenuItem(value: 'share', child: Text('Share')),
+    PopupMenuItem(value: 'move_to', child: Text('Move to')),
+    PopupMenuItem(value: 'copy_to', child: Text('Copy to')),
+    PopupMenuItem(value: 'add_starred', child: Text('Add to Starred')),
+    PopupMenuItem(value: 'move_trash', child: Text('Move to trash')),
+    PopupMenuItem(value: 'move_safe', child: Text('Move to safe folder')),
+    PopupMenuItem(
+      value: 'backup_drive',
+      child: Text('Back up to Google Drive'),
+    ),
+    PopupMenuItem(value: 'rename', child: Text('Rename')),
+    PopupMenuItem(value: 'compress', child: Text('Compress')),
+    PopupMenuItem(value: 'delete', child: Text('Delete permanently')),
+    PopupMenuItem(value: 'info', child: Text('File info')),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +613,7 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
   Widget _buildGridItem(FileModel file, bool isSelected) {
     return Card(
       elevation: isSelected ? 6 : 2,
-      color: isSelected ? Colors.blue.withOpacity(0.1) : null,
+      color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
       child: InkWell(
         onTap: () {
           if (_isSelectionMode) {
@@ -288,71 +630,87 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
           _toggleSelection(file.path);
         },
         borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: file.isDirectory
-                        ? Colors.blue.withOpacity(0.1)
-                        : Colors.grey[200],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    file.isDirectory
-                        ? Icons.folder
-                        : _getFileIcon(file.extension),
-                    color: file.isDirectory ? Colors.blue : Colors.grey[700],
-                    size: 32,
-                  ),
-                ),
-                if (isSelected)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                file.name,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? Colors.blue : null,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_vert, size: 18),
+                  onSelected: (value) => file.isDirectory
+                      ? _handleFolderAction(value, file)
+                      : _handleFileAction(value, file),
+                  itemBuilder: (_) =>
+                      file.isDirectory ? _folderMenuItems() : _fileMenuItems(),
                 ),
               ),
-            ),
-            if (!file.isDirectory)
+              const SizedBox(height: 4),
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: file.isDirectory
+                          ? Colors.blue.withValues(alpha: 0.1)
+                          : Colors.grey[200],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      file.isDirectory
+                          ? Icons.folder
+                          : _getFileIcon(file.extension),
+                      color: file.isDirectory ? Colors.blue : Colors.grey[700],
+                      size: 32,
+                    ),
+                  ),
+                  if (isSelected)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  _formatFileSize(file.size),
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  file.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.blue : null,
+                  ),
                 ),
               ),
-          ],
+              if (!file.isDirectory)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    _formatFileSize(file.size),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -406,12 +764,27 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
         subtitle: file.isDirectory
             ? Text('${file.itemCount ?? 0} items')
             : Text(_formatFileSize(file.size)),
-        trailing: file.isDirectory
-            ? const Icon(Icons.chevron_right)
-            : Text(
-                DateFormat('dd MMM yyyy').format(file.lastModified),
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!file.isDirectory)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  DateFormat('dd MMM yyyy').format(file.lastModified),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
               ),
+            PopupMenuButton<String>(
+              onSelected: (value) => file.isDirectory
+                  ? _handleFolderAction(value, file)
+                  : _handleFileAction(value, file),
+              itemBuilder: (_) =>
+                  file.isDirectory ? _folderMenuItems() : _fileMenuItems(),
+              icon: const Icon(Icons.more_vert),
+            ),
+          ],
+        ),
         onTap: () {
           if (_isSelectionMode) {
             _toggleSelection(file.path);
@@ -466,4 +839,43 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
+}
+
+class _ProgressDialog extends StatelessWidget {
+  final String message;
+
+  const _ProgressDialog({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
+          const SizedBox(width: 16),
+          Expanded(child: Text(message)),
+        ],
+      ),
+    );
+  }
+}
+
+String _zipFolder(Map<String, String> params) {
+  final source = params['source']!;
+  final zipPath = params['zip']!;
+
+  final encoder = ZipFileEncoder();
+  if (File(zipPath).existsSync()) {
+    File(zipPath).deleteSync();
+  }
+  encoder.create(zipPath);
+  encoder.addDirectory(Directory(source), includeDirName: true);
+  encoder.close();
+
+  return zipPath;
 }

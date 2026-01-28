@@ -1,6 +1,9 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_explorer_apk/providers/storage_provider.dart';
+import 'package:file_explorer_apk/services/storage_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class CleanScreen extends ConsumerWidget {
   const CleanScreen({super.key});
@@ -8,73 +11,24 @@ class CleanScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(storageStatsProvider);
+    final analysisAsync = ref.watch(storageAnalysisProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clean')),
+      appBar: AppBar(
+        title: const Text('Clean'),
+        elevation: 0,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           statsAsync.when(
-            data: (stats) => Column(
-              children: [
-                _buildStorageCard(context, stats),
-                const SizedBox(height: 16),
-                _buildCleanSection(
-                  context,
-                  title: 'Junk files',
-                  subtitle:
-                      '${stats.analysis.cacheFolders.length} cache folders detected',
-                  icon: Icons.delete_outline,
-                  actionLabel: 'Clean',
-                  onTap: () {
-                    // Logic to delete cache folders
-                  },
-                ),
-                const SizedBox(height: 16),
-                _buildCleanSection(
-                  context,
-                  title: 'Duplicate files',
-                  subtitle:
-                      '${stats.analysis.duplicateFiles.length} duplicates found',
-                  icon: Icons.copy,
-                  actionLabel: 'View',
-                  onTap: () {
-                    // Navigate to duplicates view
-                  },
-                ),
-                const SizedBox(height: 16),
-                _buildCleanSection(
-                  context,
-                  title: 'Large files',
-                  subtitle:
-                      '${stats.analysis.largeFiles.length} files taking up space',
-                  icon: Icons.insert_drive_file_outlined,
-                  actionLabel: 'Select and free up',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 16),
-                _buildCleanSection(
-                  context,
-                  title: 'Old APKs',
-                  subtitle: '${stats.analysis.oldApks.length} APK files',
-                  icon: Icons.android,
-                  actionLabel: 'Delete',
-                  onTap: () {},
-                ),
-              ],
+            data: (stats) => analysisAsync.when(
+              data: (analysis) => _buildCleanContent(context, stats, analysis),
+              loading: () => _buildLoadingState(),
+              error: (err, stack) => Center(child: Text('Error: $err')),
             ),
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Analyzing storage...'),
-                  ],
-                ),
-              ),
-            ),
+            loading: () => _buildLoadingState(),
             error: (err, stack) => Center(child: Text('Error: $err')),
           ),
         ],
@@ -82,43 +36,162 @@ class CleanScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStorageCard(BuildContext context, StorageStats stats) {
-    final usedGB = (stats.used / 1024).toStringAsFixed(1);
-    final totalGB = (stats.total / 1024).toStringAsFixed(1);
-    final percent = (stats.percentUsed * 100).toStringAsFixed(0);
-
-    return Card(
+  Widget _buildLoadingState() {
+    return const Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(32.0),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Storage',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '$percent% used',
-                  style: const TextStyle(color: Colors.blue),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: stats.percentUsed,
-              backgroundColor: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [Text('$usedGB GB used'), Text('$totalGB GB total')],
-            ),
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Analyzing storage...'),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCleanContent(
+    BuildContext context,
+    StorageStats stats,
+    StorageAnalysis analysis,
+  ) {
+    return Column(
+      children: [
+        _buildStorageCard(context, stats),
+        const SizedBox(height: 24),
+        _buildCleanSection(
+          context,
+          title: 'Junk files',
+          subtitle: '${analysis.cacheFolders.length} cache folders detected',
+          icon: Icons.delete_outline,
+          actionLabel: 'Clean',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cache cleaning coming soon.')),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildCleanSection(
+          context,
+          title: 'Duplicate files',
+          subtitle: '${analysis.duplicateFiles.length} duplicates found',
+          icon: Icons.copy,
+          actionLabel: 'View',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Duplicate viewer coming soon.')),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildCleanSection(
+          context,
+          title: 'Large files',
+          subtitle: '${analysis.largeFiles.length} files taking up space',
+          icon: Icons.insert_drive_file_outlined,
+          actionLabel: 'Select and free up',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Large file cleanup coming soon.')),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildCleanSection(
+          context,
+          title: 'Old APKs',
+          subtitle: '${analysis.oldApks.length} APK files',
+          icon: Icons.android,
+          actionLabel: 'Delete',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('APK cleanup coming soon.')),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStorageCard(BuildContext context, StorageStats stats) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final percent = (stats.percentUsed * 100).toStringAsFixed(0);
+
+    return OpenContainer(
+      closedElevation: 0,
+      openElevation: 4,
+      closedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      openShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      closedBuilder: (context, action) {
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Storage',
+                      style: GoogleFonts.getFont(
+                        'Lato',
+                        textStyle: theme.textTheme.titleLarge,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '$percent% used',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 1500),
+                  curve: Curves.easeInOut,
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: stats.percentUsed,
+                  ),
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    backgroundColor: colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(10),
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('${stats.usedText} used'),
+                    Text('${stats.totalText} total'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      openBuilder: (context, action) {
+        return const Scaffold(
+          body: Center(
+            child: Text('Storage details coming soon'),
+          ),
+        );
+      },
     );
   }
 
@@ -130,15 +203,23 @@ class CleanScreen extends ConsumerWidget {
     required String actionLabel,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         leading: CircleAvatar(
-          backgroundColor: Colors.blue.withAlpha(25),
-          child: Icon(icon, color: Colors.blue),
+          backgroundColor: colorScheme.primaryContainer.withOpacity(0.5),
+          child: Icon(icon, color: colorScheme.onPrimaryContainer),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
         trailing: OutlinedButton(onPressed: onTap, child: Text(actionLabel)),
       ),
     );

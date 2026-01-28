@@ -4,24 +4,42 @@ import 'package:animations/animations.dart';
 import 'package:file_explorer_apk/features/browse/browse_screen.dart';
 import 'package:file_explorer_apk/features/clean/clean_screen.dart';
 import 'package:file_explorer_apk/features/share/share_screen.dart';
+import 'package:file_explorer_apk/widgets/app_navigation_drawer.dart';
 
 // Navigation provider
 final navigationIndexProvider = StateProvider<int>((ref) => 1);
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedIndex = ref.watch(navigationIndexProvider);
 
-    final List<Widget> screens = [
-      const CleanScreen(),
-      const BrowseScreen(),
-      const ShareScreen(),
+    final screens = [
+      CleanScreen(onOpenDrawer: _openDrawer),
+      BrowseScreen(onOpenDrawer: _openDrawer),
+      ShareScreen(onOpenDrawer: _openDrawer),
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: AppNavigationDrawer(
+        onSectionSelected: (index) {
+          ref.read(navigationIndexProvider.notifier).state = index;
+        },
+      ),
       body: PageTransitionSwitcher(
         duration: const Duration(milliseconds: 300),
         transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
@@ -36,7 +54,9 @@ class HomeScreen extends ConsumerWidget {
           child: screens[selectedIndex],
         ),
       ),
+
       bottomNavigationBar: NavigationBar(
+        height: 72,
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
           ref.read(navigationIndexProvider.notifier).state = index;

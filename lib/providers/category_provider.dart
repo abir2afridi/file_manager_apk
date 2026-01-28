@@ -2,27 +2,107 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_explorer_apk/models/file_model.dart';
+import 'package:file_explorer_apk/services/file_service.dart';
 
 final categoryFilesProvider = FutureProvider.family<List<FileModel>, String>((
   ref,
   type,
 ) async {
-  final dir = Directory('/storage/emulated/0');
-  List<FileModel> results = [];
+  final basePath = await FileService.getPrimaryStoragePath();
+  final candidateDirs = _resolveCandidateDirectories(basePath, type);
+  final extensions = _resolveExtensions(type);
+  final results = <FileModel>[];
+  final seenPaths = <String>{};
 
-  List<String> extensions = [];
+  for (final dirPath in candidateDirs) {
+    final directory = Directory(dirPath);
+    if (!await directory.exists()) continue;
+
+    try {
+      await for (final entity in directory.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is Directory) {
+          final name = p.basename(entity.path);
+          if (name.startsWith('.') || name == 'Android') {
+            continue;
+          }
+        }
+
+        if (entity is File) {
+          if (extensions != null) {
+            final pathLower = entity.path.toLowerCase();
+            if (!extensions.any((ext) => pathLower.endsWith(ext))) {
+              continue;
+            }
+          }
+
+          if (seenPaths.add(entity.path)) {
+            try {
+              results.add(FileModel.fromFileSystemEntity(entity));
+            } catch (_) {
+              continue;
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Skip directories we cannot access
+      continue;
+    }
+  }
+
+  return results;
+});
+
+List<String> _resolveCandidateDirectories(String basePath, String type) {
+  final dirs = <String>[];
+  String join(String name) => p.join(basePath, name);
+
   switch (type) {
     case 'images':
-      extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      dirs.addAll({
+        join('DCIM'),
+        join('Pictures'),
+        join('Download'),
+        join('Screenshots'),
+      });
       break;
     case 'videos':
-      extensions = ['.mp4', '.mkv', '.avi', '.mov'];
+      dirs.addAll({join('DCIM'), join('Movies'), join('Download')});
       break;
     case 'audio':
-      extensions = ['.mp3', '.wav', '.m4a', '.flac'];
+      dirs.addAll({join('Music'), join('Audio'), join('Download')});
       break;
     case 'documents':
-      extensions = [
+      dirs.addAll({join('Documents'), join('Download'), join('Notes')});
+      break;
+    case 'apks':
+      dirs.addAll({join('Download'), join('APKs')});
+      break;
+    case 'downloads':
+      dirs.add(join('Download'));
+      break;
+  }
+
+  if (dirs.isEmpty) {
+    dirs.add(basePath);
+  }
+
+  return dirs.toSet().toList();
+}
+
+List<String>? _resolveExtensions(String type) {
+  switch (type) {
+    case 'images':
+      return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'];
+    case 'videos':
+      return ['.mp4', '.mkv', '.avi', '.mov', '.webm'];
+    case 'audio':
+      return ['.mp3', '.wav', '.m4a', '.flac', '.aac'];
+    case 'documents':
+      return [
         '.pdf',
         '.doc',
         '.docx',
@@ -32,45 +112,11 @@ final categoryFilesProvider = FutureProvider.family<List<FileModel>, String>((
         '.pptx',
         '.txt',
       ];
-      break;
     case 'apks':
-      extensions = ['.apk'];
-      break;
+      return ['.apk'];
     case 'downloads':
-      final downloadsDir = Directory('/storage/emulated/0/Download');
-      if (await downloadsDir.exists()) {
-        final entities = await downloadsDir.list().toList();
-        for (var entity in entities) {
-          if (entity is File) {
-            results.add(FileModel.fromFileSystemEntity(entity));
-          }
-        }
-        return results;
-      }
-      return [];
+      return null;
     default:
-      return [];
+      return null;
   }
-
-  try {
-    await for (var entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is Directory) {
-        final name = p.basename(entity.path);
-        if (name.startsWith('.') || name == 'Android') {
-          // Skip these folders to speed up scanning
-          continue;
-        }
-      }
-      if (entity is File) {
-        final path = entity.path.toLowerCase();
-        if (extensions.any((ext) => path.endsWith(ext))) {
-          results.add(FileModel.fromFileSystemEntity(entity));
-        }
-      }
-    }
-  } catch (e) {
-    // Handle or ignore
-  }
-
-  return results;
-});
+}

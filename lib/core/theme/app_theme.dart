@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Light Theme
-  static ThemeData get lightTheme {
-    return ThemeData(
+  static ThemeData light(Color accent) {
+    final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorSchemeSeed: Colors.blue,
@@ -20,16 +19,13 @@ class AppTheme {
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-      ),
     );
+
+    return _applyAccent(base, accent);
   }
 
-  // Dark Theme
-  static ThemeData get darkTheme {
-    return ThemeData(
+  static ThemeData dark(Color accent) {
+    final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorSchemeSeed: Colors.blue,
@@ -45,9 +41,20 @@ class AppTheme {
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
+    );
+
+    return _applyAccent(base, accent);
+  }
+
+  static ThemeData _applyAccent(ThemeData base, Color accent) {
+    final onAccent = accent.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
+
+    return base.copyWith(
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: accent,
+        foregroundColor: onAccent,
       ),
     );
   }
