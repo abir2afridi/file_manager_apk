@@ -1,0 +1,65 @@
+name: file_explorer_apk
+description: "A professional Android File Manager app inspired by Files by Google"
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.10.7
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Navigation
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  
+  # State Management
+  flutter_riverpod: ^2.6.1
+  
+  # File System & Storage
+  path_provider: ^2.1.5
+  path: ^1.8.3
+  
+  # Permissions
+  permission_handler: ^11.4.0
+  
+  # Device Info
+  device_info_plus: ^9.1.2
+  
+  # File Operations
+  share_plus: ^7.2.2
+  open_file: ^3.3.2
+  
+  # Storage Analysis
+  disk_space_2: ^1.0.12
+  
+  # Utilities
+  intl: ^0.18.1
+  mime: ^1.0.4
+  animations: ^2.0.8
+  url_launcher: ^6.2.5
+  
+  # App Management
+  installed_apps: ^2.1.0
+  flutter_launcher_icons: ^0.14.4
+  image: ^4.7.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: false
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+  
+  # Android adaptive icon
+  adaptive_icon_background: "#2196F3"
+  adaptive_icon_foreground: "assets/app_icon_adaptive.png"
+
+flutter:
+  uses-material-design: true

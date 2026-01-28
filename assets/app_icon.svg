@@ -1,0 +1,19 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
+  
+  <!-- Folder -->
+  <path d="M200 350 L472 350 L512 400 L824 400 L824 750 L200 750 Z" fill="white"/>
+  <path d="M200 350 L472 350 L512 400 L400 400 Z" fill="white"/>
+  
+  <!-- Document -->
+  <path d="M600 450 L600 650 L750 650 L750 500 L700 450 Z" fill="#64B5F6"/>
+  <path d="M700 450 L700 500 L750 500 Z" fill="#42A5F5"/>
+</svg>
