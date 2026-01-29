@@ -46,7 +46,7 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                     onChanged: (value) {
                       if (value != null) {
-                        ref.read(themeProvider.notifier).state = value;
+                        ref.read(themeProvider.notifier).update(value);
                       }
                     },
                   ),
@@ -55,7 +55,7 @@ class SettingsScreen extends ConsumerWidget {
               _AccentPickerCard(
                 selectedColor: accentColor,
                 onColorSelected: (color) {
-                  ref.read(accentColorProvider.notifier).state = color;
+                  ref.read(accentColorProvider.notifier).update(color);
                 },
               ),
             ],

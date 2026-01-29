@@ -3,11 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_explorer_apk/core/theme/app_theme.dart';
 import 'package:file_explorer_apk/features/onboarding/splash_screen.dart';
 import 'package:file_explorer_apk/providers/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const ProviderScope(child: FileManagerApp()));
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const FileManagerApp(),
+    ),
+  );
 }
 
 class FileManagerApp extends ConsumerWidget {
