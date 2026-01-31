@@ -11,6 +11,9 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:file_explorer_apk/widgets/folder_icon.dart';
+import 'package:file_explorer_apk/widgets/file_icon.dart';
+
 class FileListScreen extends ConsumerStatefulWidget {
   final String title;
   final String path;
@@ -164,8 +167,12 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
 
   Widget _buildFileItem(FileModel file, bool isGrid) {
     final isSelected = _selectedPaths.contains(file.path);
-    final icon = file.isDirectory ? Icons.folder : _getFileIcon(file.extension);
-    final color = file.isDirectory ? Colors.amber : Colors.blue;
+    final icon = file.isDirectory
+        ? Icons.folder_rounded
+        : _getFileIcon(file.extension);
+    final color = file.isDirectory
+        ? Colors.amber
+        : _getFileColor(file.extension);
 
     if (isGrid) {
       return InkWell(
@@ -193,12 +200,27 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(icon, size: 48, color: color),
+                  if (file.isDirectory)
+                    FolderIcon(baseColor: color, glyph: icon, size: 64)
+                  else
+                    FileIcon(baseColor: color, glyph: icon, size: 64),
                   if (isSelected)
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.blue,
-                      size: 24,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check_circle,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
                     ),
                 ],
               ),
@@ -221,7 +243,10 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
       leading: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(icon, color: color, size: 32),
+          if (file.isDirectory)
+            FolderIcon(baseColor: color, glyph: icon, size: 40)
+          else
+            FileIcon(baseColor: color, glyph: icon, size: 40),
           if (isSelected)
             const Icon(Icons.check_circle, color: Colors.blue, size: 20),
         ],
@@ -259,24 +284,69 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
       case '.jpeg':
       case '.png':
       case '.gif':
-        return Icons.image;
+      case '.webp':
+        return Icons.image_rounded;
       case '.mp4':
       case '.mkv':
       case '.avi':
-        return Icons.videocam;
+      case '.mov':
+        return Icons.movie_rounded;
       case '.mp3':
       case '.wav':
       case '.m4a':
-        return Icons.audiotrack;
+      case '.flac':
+        return Icons.music_note_rounded;
       case '.pdf':
-        return Icons.picture_as_pdf;
+        return Icons.picture_as_pdf_rounded;
       case '.apk':
-        return Icons.android;
+        return Icons.android_rounded;
       case '.zip':
       case '.rar':
-        return Icons.archive;
+      case '.7z':
+      case '.tar':
+        return Icons.inventory_2_rounded;
+      case '.txt':
+      case '.doc':
+      case '.docx':
+        return Icons.description_rounded;
       default:
-        return Icons.insert_drive_file;
+        return Icons.insert_drive_file_rounded;
+    }
+  }
+
+  Color _getFileColor(String ext) {
+    switch (ext) {
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+      case '.gif':
+      case '.webp':
+        return Colors.purple;
+      case '.mp4':
+      case '.mkv':
+      case '.avi':
+      case '.mov':
+        return Colors.red;
+      case '.mp3':
+      case '.wav':
+      case '.m4a':
+      case '.flac':
+        return Colors.teal;
+      case '.pdf':
+        return Colors.orange;
+      case '.apk':
+        return Colors.green;
+      case '.zip':
+      case '.rar':
+      case '.7z':
+      case '.tar':
+        return Colors.indigo;
+      case '.txt':
+      case '.doc':
+      case '.docx':
+        return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 

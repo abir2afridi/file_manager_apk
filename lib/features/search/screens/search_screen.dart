@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_explorer_apk/models/file_model.dart';
-import 'package:open_file/open_file.dart';
+import 'package:file_explorer_apk/services/viewer_launcher.dart';
 
 class FileSearchDelegate extends SearchDelegate {
   @override
@@ -65,11 +65,12 @@ class FileSearchDelegate extends SearchDelegate {
               ),
               title: Text(file.name),
               subtitle: Text(file.path),
-              onTap: () {
+              onTap: () async {
+                if (!context.mounted) return;
                 if (file.isDirectory) {
-                  // Navigate to folder? Too complex for search delegate maybe
+                  // TODO: consider navigating to directory view.
                 } else {
-                  OpenFile.open(file.path);
+                  await ViewerLauncher.openFile(context, file);
                 }
               },
             );

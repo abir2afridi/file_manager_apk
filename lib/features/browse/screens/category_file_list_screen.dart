@@ -7,9 +7,12 @@ import 'package:file_explorer_apk/features/file_explorer/screens/file_list_scree
 import 'package:file_explorer_apk/models/file_model.dart';
 import 'package:file_explorer_apk/providers/category_provider.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
+
+import 'package:file_explorer_apk/widgets/folder_icon.dart';
+import 'package:file_explorer_apk/widgets/file_icon.dart';
+import 'package:file_explorer_apk/services/viewer_launcher.dart';
 
 class CategoryFileListScreen extends ConsumerWidget {
   final String title;
@@ -118,14 +121,8 @@ class CategoryFileListScreen extends ConsumerWidget {
       return;
     }
 
-    final result = await OpenFile.open(file.path);
-    if (result.type != ResultType.done && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open ${file.name}: ${result.message}'),
-        ),
-      );
-    }
+    if (!context.mounted) return;
+    await ViewerLauncher.openFile(context, file);
   }
 
   Future<void> _openLocation(BuildContext context, FileModel file) async {
@@ -319,7 +316,8 @@ class _CategoryFileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDir = file.isDirectory;
-    final iconColor = isDir ? accentColor : theme.colorScheme.secondary;
+    final icon = isDir ? Icons.folder_rounded : _iconForFile(file.extension);
+    final iconColor = isDir ? accentColor : _getFileColor(file.extension);
 
     return Material(
       color: Colors.transparent,
@@ -344,19 +342,9 @@ class _CategoryFileTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  isDir ? Icons.folder_rounded : _iconForFile(file.extension),
-                  color: iconColor,
-                  size: 26,
-                ),
-              ),
+              isDir
+                  ? FolderIcon(baseColor: iconColor, glyph: icon, size: 40)
+                  : FileIcon(baseColor: iconColor, glyph: icon, size: 40),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -415,28 +403,73 @@ class _CategoryFileTile extends StatelessWidget {
   }
 }
 
-IconData _iconForFile(String extension) {
-  switch (extension.toLowerCase()) {
-    case '.pdf':
-      return Icons.picture_as_pdf;
-    case '.doc':
-    case '.docx':
-      return Icons.description;
-    case '.png':
+Color _getFileColor(String ext) {
+  switch (ext.toLowerCase()) {
     case '.jpg':
     case '.jpeg':
+    case '.png':
     case '.gif':
-      return Icons.image;
-    case '.mp3':
-    case '.wav':
-      return Icons.audio_file;
+    case '.webp':
+      return Colors.purple;
     case '.mp4':
     case '.mkv':
     case '.avi':
-      return Icons.movie;
+    case '.mov':
+      return Colors.red;
+    case '.mp3':
+    case '.wav':
+    case '.m4a':
+    case '.flac':
+      return Colors.teal;
+    case '.pdf':
+      return Colors.orange;
+    case '.apk':
+      return Colors.green;
     case '.zip':
     case '.rar':
-      return Icons.archive_rounded;
+    case '.7z':
+    case '.tar':
+      return Colors.indigo;
+    case '.txt':
+    case '.doc':
+    case '.docx':
+      return Colors.blue;
+    default:
+      return Colors.grey;
+  }
+}
+
+IconData _iconForFile(String extension) {
+  switch (extension.toLowerCase()) {
+    case '.jpg':
+    case '.jpeg':
+    case '.png':
+    case '.gif':
+    case '.webp':
+      return Icons.image_rounded;
+    case '.mp4':
+    case '.mkv':
+    case '.avi':
+    case '.mov':
+      return Icons.movie_rounded;
+    case '.mp3':
+    case '.wav':
+    case '.m4a':
+    case '.flac':
+      return Icons.music_note_rounded;
+    case '.pdf':
+      return Icons.picture_as_pdf_rounded;
+    case '.apk':
+      return Icons.android_rounded;
+    case '.zip':
+    case '.rar':
+    case '.7z':
+    case '.tar':
+      return Icons.inventory_2_rounded;
+    case '.txt':
+    case '.doc':
+    case '.docx':
+      return Icons.description_rounded;
     default:
       return Icons.insert_drive_file_rounded;
   }

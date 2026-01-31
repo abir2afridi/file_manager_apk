@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_explorer_apk/features/apps/screens/app_list_screen.dart';
 import 'package:file_explorer_apk/features/browse/screens/category_file_list_screen.dart';
 import 'package:file_explorer_apk/features/file_explorer/screens/file_list_screen.dart';
+import 'package:file_explorer_apk/features/zip/screens/zip_tool_screen.dart';
 import 'package:file_explorer_apk/features/search/screens/search_screen.dart';
 import 'package:file_explorer_apk/providers/storage_provider.dart';
 import 'package:file_explorer_apk/providers/theme_provider.dart';
 import 'package:file_explorer_apk/services/file_service.dart';
 import 'package:file_explorer_apk/widgets/storage_breakdown_sheet.dart';
-import 'package:file_explorer_apk/widgets/folder_icon.dart';
 
 class BrowseScreen extends ConsumerWidget {
   final VoidCallback? onOpenDrawer;
@@ -60,7 +60,7 @@ class BrowseScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(storageStatsProvider.future),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
           children: [
             _BrowseHeader(
               accentColor: accentColor,
@@ -116,7 +116,7 @@ class _BrowseHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         onTap: () => onOpenStorage(),
         child: Ink(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             gradient: LinearGradient(
@@ -404,117 +404,115 @@ class _BrowseSection extends StatelessWidget {
   }
 }
 
-class _CategoryGrid extends StatelessWidget {
+class _CategoryGrid extends ConsumerWidget {
   const _CategoryGrid();
 
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width >= 460;
-    final childAspectRatio = isWide ? 0.95 : 0.72;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final design = ref.watch(categoryDesignProvider);
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isWide ? 3 : 2,
-        mainAxisSpacing: 18,
-        crossAxisSpacing: 18,
-        childAspectRatio: childAspectRatio,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.85,
       ),
       itemCount: _categoryItems.length,
       itemBuilder: (context, index) {
-        final item = _categoryItems[index];
-        return _CategoryCard(
-          icon: item.icon,
-          color: item.color,
-          label: item.label,
-          description: item.description,
-          onTap: () => item.onTap(context),
-        );
+        return _CategoryTile(data: _categoryItems[index], design: design);
       },
     );
   }
 }
 
-class _CategoryCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String description;
-  final VoidCallback onTap;
+class _CategoryTile extends StatelessWidget {
+  final _CategoryItemData data;
+  final CategoryDesign design;
 
-  const _CategoryCard({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.description,
-    required this.onTap,
-  });
+  const _CategoryTile({required this.data, required this.design});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final Color backgroundColor;
+    final Border border;
+
+    switch (design) {
+      case CategoryDesign.colorful: // Vibrant
+        backgroundColor = data.color.withValues(alpha: 0.1);
+        border = Border.all(color: theme.colorScheme.outlineVariant);
+        break;
+      case CategoryDesign.minimalist: // Clean
+        backgroundColor = Colors.transparent;
+        border = Border.all(color: theme.colorScheme.outlineVariant);
+        break;
+      case CategoryDesign.glass:
+        backgroundColor = data.color.withValues(alpha: 0.06);
+        border = Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+        );
+        break;
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        onTap: () => data.onTap(context),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.surfaceContainerHigh,
-                theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.86),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: theme.colorScheme.surfaceContainerHighest,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(20),
+            border: border,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              FolderIcon(baseColor: color, glyph: icon, size: 48),
-              const SizedBox(height: 18),
-              Text(
-                label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: data.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                child: Icon(data.icon, color: data.color, size: 22),
               ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Explore',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.primary,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      data.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
+                    Text(
+                      data.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.55,
+                        ),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               ),
             ],
           ),
@@ -563,7 +561,7 @@ class _QuickAccessTile extends StatelessWidget {
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(18),
@@ -630,73 +628,79 @@ class _ToolGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: _tools
-          .map(
-            (tool) => Material(
-              color: Colors.transparent,
-              child: InkWell(
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.15,
+      ),
+      itemCount: _tools.length,
+      itemBuilder: (context, index) {
+        final tool = _tools[index];
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => tool.onTap(context),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => tool.onTap(context),
-                child: Container(
-                  width: 200,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.shadow.withValues(alpha: 0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondary.withValues(
-                            alpha: 0.16,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          tool.icon,
-                          color: theme.colorScheme.secondary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        tool.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tool.subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.65,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                border: Border.all(
+                  color: theme.colorScheme.surfaceContainerHighest,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.06),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withValues(
+                        alpha: 0.16,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(tool.icon, color: theme.colorScheme.secondary),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tool.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    tool.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.65,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          )
-          .toList(),
+          ),
+        );
+      },
     );
   }
 }
@@ -780,6 +784,17 @@ final List<_ToolData> _tools = [
       );
     },
   ),
+  _ToolData(
+    icon: Icons.folder_zip_rounded,
+    title: 'ZIP toolkit',
+    subtitle: 'Compress or extract archives',
+    onTap: (context) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ZipToolScreen()),
+      );
+    },
+  ),
 ];
 
 final List<_CategoryItemData> _categoryItems = [
@@ -830,6 +845,14 @@ final List<_CategoryItemData> _categoryItems = [
     description: 'Installation packages and backups.',
     routeBuilder: () =>
         const CategoryFileListScreen(title: 'APKs', type: 'apks'),
+  ),
+  _CategoryItemData(
+    label: 'Archives',
+    icon: Icons.folder_zip_rounded,
+    color: Colors.deepOrange,
+    description: 'Zip, Rar, and compressed folders.',
+    routeBuilder: () =>
+        const CategoryFileListScreen(title: 'Archives', type: 'archives'),
   ),
   _CategoryItemData(
     label: 'Apps',

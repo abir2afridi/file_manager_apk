@@ -8,10 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_explorer_apk/models/file_model.dart';
 import 'package:file_explorer_apk/services/file_service.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'package:file_explorer_apk/services/viewer_launcher.dart';
 
 class FileListScreen extends ConsumerStatefulWidget {
   final String title;
@@ -96,20 +97,8 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
   }
 
   Future<void> _openFile(FileModel file) async {
-    try {
-      final result = await OpenFile.open(file.path);
-      if (result.type != ResultType.done && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open file: ${result.message}')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error opening file: $e')));
-      }
-    }
+    if (!mounted) return;
+    await ViewerLauncher.openFile(context, file, scope: _files);
   }
 
   void _toggleSelection(String filePath) {
@@ -622,7 +611,7 @@ class _FileListScreenState extends ConsumerState<FileListScreen> {
             if (file.isDirectory) {
               _navigateToDirectory(file);
             } else {
-              _openFile(file);
+              ViewerLauncher.openFile(context, file, scope: _files);
             }
           }
         },

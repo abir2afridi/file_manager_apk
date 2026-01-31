@@ -1,11 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:file_explorer_apk/features/home/home_screen.dart';
 import 'package:file_explorer_apk/features/onboarding/intro_screen.dart';
 
-/// Splash screen with a subtle fade-in animation that decides whether to show
-/// onboarding or jump straight into the main experience.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -16,23 +15,32 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fadeIn;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 2000),
     );
-    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _controller.forward();
 
+    _scale = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+    );
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.4, 0.8, curve: Curves.easeIn),
+    );
+
+    _controller.forward();
     _navigateNext();
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 1600));
+    await Future.delayed(const Duration(milliseconds: 2800));
 
     final prefs = await SharedPreferences.getInstance();
     final hasCompletedOnboarding =
@@ -46,11 +54,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
-          child: nextRoute,
-        ),
+        transitionDuration: const Duration(milliseconds: 800),
+        pageBuilder: (_, animation, __) =>
+            FadeTransition(opacity: animation, child: nextRoute),
       ),
     );
   }
@@ -67,56 +73,126 @@ class _SplashScreenState extends State<SplashScreen>
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primaryContainer.withOpacity(0.9),
-              colorScheme.primaryContainer.withOpacity(0.5),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _SplashBackgroundPainter(
+                color: colorScheme.primary.withValues(alpha: 0.05),
+              ),
+            ),
           ),
-        ),
-        child: FadeTransition(
-          opacity: _fadeIn,
-          child: Center(
+          Center(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Icon(
-                    Icons.folder_copy_rounded,
-                    size: 48,
-                    color: colorScheme.primary,
+                ScaleTransition(
+                  scale: _scale,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(36),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.folder_copy_rounded,
+                      size: 64,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  'File Manager Pro',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Browse • Clean • Share',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+                const SizedBox(height: 48),
+                FadeTransition(
+                  opacity: _fade,
+                  child: Column(
+                    children: [
+                      Text(
+                        'File Manager Pro',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Secure • Fast • Organized',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ),
+          Positioned(
+            bottom: 64,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
+              opacity: _fade,
+              child: Center(
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: colorScheme.primary.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _SplashBackgroundPainter extends CustomPainter {
+  final Color color;
+
+  _SplashBackgroundPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final random = math.Random(42);
+    for (var i = 0; i < 15; i++) {
+      final radius = 50 + random.nextDouble() * 100;
+      final center = Offset(
+        random.nextDouble() * size.width,
+        random.nextDouble() * size.height,
+      );
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

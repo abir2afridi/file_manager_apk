@@ -1,4 +1,4 @@
-# File Manager Pro
+# File Manager Pro Changelog
 
 A professional Android File Manager application built with Flutter, inspired by Google Files UI and functionality.
 
@@ -11,9 +11,15 @@ A professional Android File Manager application built with Flutter, inspired by 
 
 ### 📁 Browse Tab
 - File browsing with folder navigation
-- File categories (Images, Videos, Audio, Documents, APKs)
+- File categories (Images, Videos, Audio, Documents, APKs, Archives)
 - Search functionality
 - Storage information display
+- **In‑App Viewers**: Open images, videos, audio, and documents without leaving the app
+  - Image gallery & fullscreen viewer with zoom/pan
+  - Video player with controls and playlist support
+  - Audio player with queue and background playback
+  - Document viewer for PDF, TXT, DOCX (fallback to external apps)
+- **ZIP Toolkit**: Compress and extract archives with progress indicators
 
 ### 🧹 Clean Tab
 - Storage analysis
@@ -70,13 +76,13 @@ flutter build apk --release
 
 ## Permissions Required
 
-The app requires the following permissions:
+The app requests the following permissions based on Android version:
 
-- **READ_EXTERNAL_STORAGE**: Read files from device storage
-- **WRITE_EXTERNAL_STORAGE**: Write/delete files to storage  
+- **READ_EXTERNAL_STORAGE / WRITE_EXTERNAL_STORAGE**: Legacy storage access (Android < 10)
 - **MANAGE_EXTERNAL_STORAGE**: Full storage access (Android 11+)
 - **QUERY_ALL_PACKAGES**: List installed apps
 - **REQUEST_INSTALL_PACKAGES**: Install APK files
+- **Android 13+ granular media permissions** (photos, videos, audio) for media libraries
 
 ## Project Structure
 
@@ -89,13 +95,46 @@ lib/
 │   ├── home/
 │   │   └── home_screen.dart         # Main navigation
 │   ├── browse/
-│   │   └── browse_screen.dart       # File browser
+│   │   └── browse_screen.dart       # File browser & tools entry
 │   ├── clean/
 │   │   └── clean_screen.dart        # Storage cleaner
-│   └── share/
-│       └── share_screen.dart        # File sharing
+│   ├── share/
+│   │   └── share_screen.dart        # File sharing
+│   ├── media/
+│   │   ├── screens/
+│   │   │   ├── image_gallery_screen.dart
+│   │   │   ├── image_viewer_screen.dart
+│   │   │   ├── video_library_screen.dart
+│   │   │   ├── video_player_screen.dart
+│   │   │   ├── audio_library_screen.dart
+│   │   │   └── audio_player_screen.dart
+│   │   └── widgets/
+│   │       └── media_thumbnail.dart
+│   ├── documents/
+│   │   └── screens/
+│   │       └── document_viewer_screen.dart
+│   ├── zip/
+│   │   └── screens/
+│   │       └── zip_tool_screen.dart
+│   └── file_explorer/
+│       └── file_list_screen.dart
 ├── services/
-│   └── permission_service.dart     # Permission handling
+│   ├── permission_service.dart     # Permission handling (Android 13+ media)
+│   ├── file_service.dart           # File operations
+│   ├── media_library_service.dart  # Media scanning (isolates)
+│   ├── document_service.dart       # Document parsing (PDF/TXT/DOCX)
+│   ├── audio_playback_service.dart # Audio playback wrapper
+│   ├── zip_service.dart            # ZIP compression/extraction
+│   ├── file_type_resolver.dart     # MIME/type resolution
+│   └── viewer_launcher.dart        # Centralized viewer routing
+├── providers/
+│   ├── media_library_providers.dart
+│   ├── document_providers.dart
+│   └── audio_playback_provider.dart
+├── models/
+│   ├── file_model.dart
+│   ├── media_asset.dart
+│   └── document_models.dart
 └── main.dart                        # App entry point
 ```
 
@@ -103,12 +142,23 @@ lib/
 
 - **flutter_riverpod**: State management
 - **google_fonts**: Typography
-- **permission_handler**: Android permissions
+- **permission_handler**: Android permissions (including Android 13+ media)
 - **path_provider**: File system paths
 - **share_plus**: File sharing
-- **open_file**: Open files with external apps
+- **open_filex**: Open files with external apps (fallback)
 - **device_info_plus**: Device information
 - **animations**: Smooth transitions
+
+### Media & Document Viewers
+- **photo_view**: Image zoom/pan and fullscreen viewer
+- **video_player**: In‑app video playback
+- **just_audio**: Audio playback with background support
+- **audio_session**: Audio session management
+- **pdfx**: PDF rendering
+- **mime**: MIME type detection
+- **archive**: ZIP compression/extraction and DOCX parsing
+- **xml**: DOCX XML parsing
+- **path**: Path utilities
 
 ## Troubleshooting
 
@@ -120,10 +170,17 @@ lib/
 ### Permission Issues
 - Grant storage permissions when prompted
 - For Android 11+, enable "All files access" in settings
+- On Android 13+, grant individual media permissions (Photos, Videos, Audio) for media libraries
 
 ### Performance Issues
 - Use Release builds for better performance
 - Enable R8 shrinking for release builds
+- Media scanning runs in isolates to avoid UI freezes
+
+### Viewer Fallbacks
+- In‑app viewers support common formats (images, videos, audio, PDF, TXT, DOCX)
+- Unsupported formats automatically open with external apps via `open_filex`
+- Errors in in‑app rendering also trigger external app fallback
 
 ## Contributing
 

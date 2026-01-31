@@ -84,6 +84,9 @@ List<String> _resolveCandidateDirectories(String basePath, String type) {
     case 'downloads':
       dirs.add(join('Download'));
       break;
+    case 'archives':
+      dirs.addAll({join('Download'), join('Documents')});
+      break;
   }
 
   if (dirs.isEmpty) {
@@ -116,6 +119,8 @@ List<String>? _resolveExtensions(String type) {
       return ['.apk'];
     case 'downloads':
       return null;
+    case 'archives':
+      return ['.zip', '.rar', '.7z', '.tar', '.gz'];
     default:
       return null;
   }

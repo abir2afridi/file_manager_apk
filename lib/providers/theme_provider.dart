@@ -18,7 +18,14 @@ final folderStyleProvider = NotifierProvider<FolderStyleNotifier, FolderStyle>(
   FolderStyleNotifier.new,
 );
 
+final categoryDesignProvider =
+    NotifierProvider<CategoryDesignNotifier, CategoryDesign>(
+      CategoryDesignNotifier.new,
+    );
+
 enum FolderStyle { classic, solid, neon, outline }
+
+enum CategoryDesign { colorful, minimalist, glass }
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   static const _prefKey = 'settings.themeMode';
@@ -87,5 +94,25 @@ class FolderStyleNotifier extends Notifier<FolderStyle> {
     state = style;
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setString(_prefKey, style.name);
+  }
+}
+
+class CategoryDesignNotifier extends Notifier<CategoryDesign> {
+  static const _prefKey = 'settings.categoryDesign';
+
+  @override
+  CategoryDesign build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final stored = prefs.getString(_prefKey);
+    return CategoryDesign.values.firstWhere(
+      (e) => e.name == stored,
+      orElse: () => CategoryDesign.colorful,
+    );
+  }
+
+  Future<void> update(CategoryDesign design) async {
+    state = design;
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString(_prefKey, design.name);
   }
 }
