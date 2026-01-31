@@ -13,7 +13,7 @@ class CategoryGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 1.2,
-      children: [
+      children: const [
         _CategoryItem(
           icon: Icons.image,
           color: Colors.blue,

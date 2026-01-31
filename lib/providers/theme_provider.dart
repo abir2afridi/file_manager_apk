@@ -14,6 +14,12 @@ final accentColorProvider = NotifierProvider<AccentColorNotifier, Color>(
   AccentColorNotifier.new,
 );
 
+final folderStyleProvider = NotifierProvider<FolderStyleNotifier, FolderStyle>(
+  FolderStyleNotifier.new,
+);
+
+enum FolderStyle { classic, solid, neon, outline }
+
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   static const _prefKey = 'settings.themeMode';
 
@@ -61,5 +67,25 @@ class AccentColorNotifier extends Notifier<Color> {
     state = color;
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setInt(_prefKey, color.value);
+  }
+}
+
+class FolderStyleNotifier extends Notifier<FolderStyle> {
+  static const _prefKey = 'settings.folderStyle';
+
+  @override
+  FolderStyle build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final stored = prefs.getString(_prefKey);
+    return FolderStyle.values.firstWhere(
+      (e) => e.name == stored,
+      orElse: () => FolderStyle.classic,
+    );
+  }
+
+  Future<void> update(FolderStyle style) async {
+    state = style;
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString(_prefKey, style.name);
   }
 }

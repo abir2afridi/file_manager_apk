@@ -8,6 +8,7 @@ import 'package:file_explorer_apk/providers/storage_provider.dart';
 import 'package:file_explorer_apk/providers/theme_provider.dart';
 import 'package:file_explorer_apk/services/file_service.dart';
 import 'package:file_explorer_apk/widgets/storage_breakdown_sheet.dart';
+import 'package:file_explorer_apk/widgets/folder_icon.dart';
 
 class BrowseScreen extends ConsumerWidget {
   final VoidCallback? onOpenDrawer;
@@ -88,111 +89,6 @@ class BrowseScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-}
-
-class _FolderIcon extends StatelessWidget {
-  final Color baseColor;
-  final IconData glyph;
-
-  const _FolderIcon({required this.baseColor, required this.glyph});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(68, 48),
-      painter: _FolderIconPainter(color: baseColor, glyph: glyph),
-    );
-  }
-}
-
-class _FolderIconPainter extends CustomPainter {
-  final Color color;
-  final IconData glyph;
-
-  const _FolderIconPainter({required this.color, required this.glyph});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final tabHeight = size.height * 0.38;
-    final tabWidth = size.width * 0.6;
-    final bodyRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, tabHeight, size.width, size.height - tabHeight),
-      const Radius.circular(16),
-    );
-
-    final shadowPaint = Paint()
-      ..color = color.withValues(alpha: 0.16)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawRRect(bodyRect.shift(const Offset(0, 2)), shadowPaint);
-
-    final bodyPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [color.withValues(alpha: 0.95), color.withValues(alpha: 0.72)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(bodyRect.outerRect);
-    canvas.drawRRect(bodyRect, bodyPaint);
-
-    final flapRect = RRect.fromRectAndCorners(
-      Rect.fromLTWH(
-        size.width * 0.05,
-        tabHeight - size.height * 0.32,
-        tabWidth,
-        size.height * 0.36,
-      ),
-      topLeft: const Radius.circular(14),
-      topRight: const Radius.circular(14),
-      bottomLeft: const Radius.circular(10),
-      bottomRight: const Radius.circular(12),
-    );
-    final flapPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [color.withValues(alpha: 0.9), color.withValues(alpha: 0.7)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(flapRect.outerRect);
-    canvas.drawRRect(flapRect, flapPaint);
-
-    final highlightPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.24),
-          Colors.white.withValues(alpha: 0.06),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(bodyRect.outerRect);
-    canvas.drawRRect(bodyRect.inflate(-2), highlightPaint);
-
-    final glyphColor = color.computeLuminance() > 0.55
-        ? Colors.black
-        : Colors.white;
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(glyph.codePoint),
-        style: TextStyle(
-          fontSize: size.height * 0.38,
-          fontFamily: glyph.fontFamily,
-          package: glyph.fontPackage,
-          color: glyphColor,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final glyphOffset = Offset(
-      (size.width - textPainter.width) / 2,
-      tabHeight + (size.height - tabHeight - textPainter.height) / 2,
-    );
-    textPainter.paint(canvas, glyphOffset);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FolderIconPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.glyph != glyph;
   }
 }
 
@@ -589,7 +485,7 @@ class _CategoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FolderIcon(baseColor: color, glyph: icon),
+              FolderIcon(baseColor: color, glyph: icon, size: 48),
               const SizedBox(height: 18),
               Text(
                 label,

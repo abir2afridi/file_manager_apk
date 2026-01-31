@@ -1,8 +1,10 @@
+import 'package:file_explorer_apk/widgets/folder_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:file_explorer_apk/providers/theme_provider.dart';
+import 'package:file_explorer_apk/features/settings/developer_profile_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -11,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
     final accentColor = ref.watch(accentColorProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -52,6 +55,17 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              _SettingsCard(
+                icon: Icons.folder_shared_rounded,
+                title: 'Folder design',
+                subtitle: 'Choose your preferred iconic style',
+                child: _FolderStylePicker(
+                  selectedStyle: ref.watch(folderStyleProvider),
+                  onStyleSelected: (style) {
+                    ref.read(folderStyleProvider.notifier).update(style);
+                  },
+                ),
+              ),
               _AccentPickerCard(
                 selectedColor: accentColor,
                 onColorSelected: (color) {
@@ -86,7 +100,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          _SettingsSection(
+          const _SettingsSection(
             title: 'File operations',
             subtitle: 'Adjust how browsing and sorting behaves.',
             children: [
@@ -109,35 +123,22 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'Get to know the person behind File Manager Pro.',
             children: [
               _SettingsCard(
-                icon: Icons.person_outline,
-                title: 'Abir Afridi',
-                subtitle: 'Independent University, Bangladesh (IUB)',
-                child: const Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _InfoChip(
-                      icon: Icons.code,
-                      label: 'Tech Stack',
-                      value: 'Flutter • Dart • React • Firebase',
-                    ),
-                    _InfoChip(
-                      icon: Icons.language,
-                      label: 'Languages',
-                      value: 'Bangla • English',
-                    ),
-                    _InfoChip(
-                      icon: Icons.favorite_outline,
-                      label: 'Blood Group',
-                      value: 'B+',
-                    ),
-                    _InfoChip(
-                      icon: Icons.location_on_outlined,
-                      label: 'Location',
-                      value: 'Bangladesh',
-                    ),
-                  ],
+                icon: Icons.badge_rounded,
+                title: 'Developer profile',
+                subtitle: 'Abir Hasan Siam • BSc in Computer Science',
+                trailing: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
                 ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DeveloperProfileScreen(),
+                    ),
+                  );
+                },
               ),
               _SettingsCard(
                 icon: Icons.web_rounded,
@@ -505,50 +506,6 @@ class _HeaderChip extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(14),
-      decoration: _settingsCardDecoration(
-        context,
-      ).copyWith(color: theme.colorScheme.surfaceContainerLow),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(value, style: theme.textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
-
 class _ColorPreset {
   final String label;
   final Color color;
@@ -646,6 +603,94 @@ class _NavigationAccentPicker extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _FolderStylePicker extends StatelessWidget {
+  final FolderStyle selectedStyle;
+  final ValueChanged<FolderStyle> onStyleSelected;
+
+  const _FolderStylePicker({
+    required this.selectedStyle,
+    required this.onStyleSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.4,
+      children: FolderStyle.values.map((style) {
+        final isSelected = style == selectedStyle;
+        final styleName = style.name[0].toUpperCase() + style.name.substring(1);
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onStyleSelected(style),
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                    : theme.colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(40, 28),
+                    painter: FolderIconPainter(
+                      color: theme.colorScheme.primary,
+                      glyph: Icons.folder_rounded,
+                      style: style,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    styleName,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: isSelected
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
